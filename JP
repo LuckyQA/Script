@@ -307,13 +307,13 @@ local function AutoFarmMoneyLoop()
     while Settings.AutoFarmMoney do
         task.wait(0.5)
         pcall(function()
-            Settings.Monsters = {["Universe 7 Warrior"] = true}
+            Settings.Monsters = {["Weak Demon"] = true}
             
             local myHRP = getHRP()
-            local eventIslandPos = IslandLocations["Event Island"]
+            local demonIslandPos = IslandLocations["Demon Island"]
             
-            if myHRP and eventIslandPos then
-                myHRP.CFrame = eventIslandPos
+            if myHRP and demonIslandPos then
+                myHRP.CFrame = demonIslandPos
             end
 
             if not Settings.Enabled then
