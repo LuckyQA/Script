@@ -1169,7 +1169,7 @@ local function ApplyPotato()
             obj.Reflectance = 0
             obj.CastShadow = false
         elseif obj:IsA("Decal") or obj:IsA("Texture") then
-            obj.Transparency = 1 -- ใช้ซ่อนแทนการ Destroy เพื่อไม่ให้ของหาย
+            obj.Transparency = 1
         elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Fire") or obj:IsA("Smoke") then
             obj.Enabled = false
         elseif obj:IsA("MeshPart") then
