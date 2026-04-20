@@ -1272,6 +1272,22 @@ Tabs.Settings:AddButton({
     end
 })
 
+Tabs.Settings:AddToggle("Anti AFK", {
+    Title = "Anti AFK",
+    Default = false,
+    Callback = function(v)
+        local conn = getgenv().AntiAFKConn
+        if v then
+            getgenv().AntiAFKConn = player.Idled:Connect(function()
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton2(Vector2.new(0,0))
+            end)
+        else
+            if conn then conn:Disconnect() getgenv().AntiAFKConn = nil end
+        end
+    end
+})
+
 Tabs.Settings:AddToggle("AFK", {
     Title = "AFK Mode",
     Default = false,
@@ -1382,11 +1398,6 @@ local function GuaranteeMoonKatana()
     targetLabelMoonKatana:GetPropertyChangedSignal("Text"):Connect(FireMoonKatana)
     FireMoonKatana()
 end
-
-player.Idled:Connect(function()
-    VirtualUser:CaptureController()
-    VirtualUser:ClickButton2(Vector2.new(0,0))
-end)
 
 task.spawn(GuaranteeHogyoku)
 task.spawn(GuaranteeItachiEye)
