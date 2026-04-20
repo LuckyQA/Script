@@ -677,7 +677,7 @@ end
 
 local function AutoSummonSukunaLoop()
     while Settings.AutoSukuna do
-        task.wait(0.5)
+        task.wait(0.1)
         pcall(function()
             local bossIsland = workspace:FindFirstChild("Mobs") and workspace.Mobs:FindFirstChild("Ocean")
             local SukunaExist = bossIsland and bossIsland:FindFirstChild("Sukuna")
@@ -691,7 +691,7 @@ end
 
 local function AutoSummonFlashyLoop()
     while Settings.AutoFlashy do
-        task.wait(0.5)
+        task.wait(0.1)
         pcall(function()
             local bossIsland = workspace:FindFirstChild("Mobs") and workspace.Mobs:FindFirstChild("Ocean")
             local flashyExist = bossIsland and bossIsland:FindFirstChild("Flashy Flash")
@@ -705,7 +705,7 @@ end
 
 local function AutoSummonAizenLoop()
     while Settings.AutoAizen do
-        task.wait(0.5)
+        task.wait(0.1)
         pcall(function()
             local bossIsland = workspace:FindFirstChild("Mobs") and workspace.Mobs:FindFirstChild("Ocean")
             local AizenExist = bossIsland and bossIsland:FindFirstChild("Aizen")
@@ -719,7 +719,7 @@ end
 
 local function AutoSummonKokushiboLoop()
     while Settings.AutoKokushibo do
-        task.wait(0.5)
+        task.wait(0.1)
         pcall(function()
             local bossIsland = workspace:FindFirstChild("Mobs") and workspace.Mobs:FindFirstChild("Ocean")
             local KokushiboExist = bossIsland and bossIsland:FindFirstChild("Kokushibo")
@@ -733,7 +733,7 @@ end
 
 local function AutoSummonSungjinwooLoop()
     while Settings.AutoSungjinwoo do
-        task.wait(0.5)
+        task.wait(0.1)
         pcall(function()
             local bossIsland = workspace:FindFirstChild("Mobs") and workspace.Mobs:FindFirstChild("Ocean")
             local SungjinwooExist = bossIsland and bossIsland:FindFirstChild("Sung Jinwoo")
@@ -771,7 +771,7 @@ end
 
 local function AutoSummonLoop()
     while Settings.AutoSummon do
-        task.wait(1.5)
+        task.wait(0.1)
         pcall(function()
             local dioExist = false
             local mobs = workspace:FindFirstChild("Mobs")
@@ -833,7 +833,7 @@ end
 
 local function AutoSummonGojoLoop()
     while Settings.AutoGojo do
-        task.wait(0.5)
+        task.wait(0.1)
         pcall(function()
             local gojoExist = false
             local mobs = workspace:FindFirstChild("Mobs")
@@ -915,7 +915,7 @@ Tabs.Main:AddDropdown("PosDrop", {
 Tabs.Main:AddSlider("Dist", {
     Title = "Distance",
     Min = 1,
-    Max = 25,
+    Max = 50,
     Default = 10,
     Rounding = 1,
     Callback = function(v)
