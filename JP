@@ -852,26 +852,32 @@ local function AutoSummonGojoLoop()
     end
 end
 
-local function CreateClaimToggle(itemName, targetText, conflicts)
-    local toggleName = "Auto" .. itemName:gsub(" ", "")
-    getgenv()[toggleName] = false
+_G.Toggles = _G.Toggles or {}
 
-    Tabs.Auto:AddToggle(toggleName, {
+local function CreateClaimToggle(itemName, targetText, conflicts)
+    local toggleKey = "Auto" .. itemName:gsub(" ", "")
+    getgenv()[toggleKey] = false
+
+    _G.Toggles[toggleKey] = Tabs.Auto:AddToggle(toggleKey, {
         Title = "Auto Claim " .. itemName,
         Default = false,
         Callback = function(v)
-            getgenv()[toggleName] = v
+            getgenv()[toggleKey] = v
             
             if v then
                 if conflicts and type(conflicts) == "table" then
                     for _, otherItem in pairs(conflicts) do
-                        local conflictToggleName = "Auto" .. otherItem:gsub(" ", "")
-                        getgenv()[conflictToggleName] = false
+                        local otherKey = "Auto" .. otherItem:gsub(" ", "")
+                        
+                        if _G.Toggles[otherKey] then
+                            getgenv()[otherKey] = false
+                            _G.Toggles[otherKey]:SetValue(false)
+                        end
                     end
                 end
 
                 task.spawn(function()
-                    while getgenv()[toggleName] do
+                    while getgenv()[toggleKey] do
                         local playerGui = player:FindFirstChild("PlayerGui")
                         local mainGui = playerGui and playerGui:FindFirstChild("MainGui")
                         
@@ -1152,55 +1158,28 @@ Tabs.Auto:AddButton({
     end
 })
 
-_G.Toggles = _G.Toggles or {}
-
-local function CreateClaimToggle(itemName, targetText, conflicts)
-    local toggleKey = "Auto" .. itemName:gsub(" ", "")
-    getgenv()[toggleKey] = false
-
-    _G.Toggles[toggleKey] = Tabs.Auto:AddToggle(toggleKey, {
-        Title = "Auto Claim " .. itemName,
-        Default = false,
-        Callback = function(v)
-            getgenv()[toggleKey] = v
-            
-            if v then
-                if conflicts and type(conflicts) == "table" then
-                    for _, otherItem in pairs(conflicts) do
-                        local otherKey = "Auto" .. otherItem:gsub(" ", "")
-                        
-                        if _G.Toggles[otherKey] then
-                            getgenv()[otherKey] = false
-                            _G.Toggles[otherKey]:SetValue(false)
+Tabs.Auto:AddToggle("AutoStoreToggle", {
+    Title = "Auto Store Items", 
+    Default = false,
+    Callback = function(v)
+        Settings.AutoStore = v
+        
+        if v then
+            task.spawn(function()
+                while Settings.AutoStore do
+                    for _, item in ipairs(player.Backpack:GetChildren()) do
+                        if item:IsA("Tool") and item.Name ~= Settings.Tool then
+                            pcall(function()
+                                ReplicatedStorage.System.Inv.Inventory:InvokeServer("Add", item.Name)
+                            end)
                         end
                     end
+                    task.wait(0.5)
                 end
-
-                task.spawn(function()
-                    while getgenv()[toggleKey] do
-                        local playerGui = player:FindFirstChild("PlayerGui")
-                        local mainGui = playerGui and playerGui:FindFirstChild("MainGui")
-                        
-                        if mainGui then
-                            local itemPath = mainGui.GUARANTEE.Main:FindFirstChild(itemName)
-                            local label = itemPath and itemPath.Frame:FindFirstChild("TextLabel1", true)
-
-                            if label then
-                                local current, goal = label.Text:match("(%d+)/(%d+)")
-                                if current and goal and tonumber(current) >= tonumber(goal) then
-                                    game:GetService("ReplicatedStorage").System.Guarantee:FireServer(itemName)
-                                    task.wait(0.1)
-                                    game:GetService("ReplicatedStorage").System.Inv.Inventory:InvokeServer("Add", itemName)
-                                end
-                            end
-                        end
-                        task.wait(1)
-                    end
-                end)
-            end
+            end)
         end
-    })
-end
+    end 
+})
 
 CreateClaimToggle("Instakill Sword", "10/10 Boss Kill", nil)
 CreateClaimToggle("Sukuna Finger", "7/7 Boss Kill", nil)
