@@ -7,8 +7,8 @@ local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 local TeleportService = game:GetService("TeleportService")
-local mobsFolder = workspace:WaitForChild("Mobs")
-local MobCache = {}
+local pressedFOnce = false
+
 local craftconn
 local lastCraftFire = 0
 local craftcooldown = 0.1
@@ -137,68 +137,51 @@ local function getFarmCFrame(mobHRP)
     return mobHRP.CFrame
 end
 
-
-local function updateMobCache()
-    table.clear(MobCache)
-
-    for _, island in ipairs(mobsFolder:GetChildren()) do
-        local children = island:GetChildren()
-        for i = 1, #children do
-            local mob = children[i]
-            if mob:FindFirstChild("HumanoidRootPart") then
-                MobCache[#MobCache+1] = mob
-            end
+local function findTarget()
+    if CurrentTarget and CurrentTarget.Parent and CurrentTarget:FindFirstChild("HumanoidRootPart") then
+        local hum = CurrentTarget:FindFirstChildOfClass("Humanoid")
+        if hum and hum.Health > 0 then
+            return CurrentTarget, CurrentTarget.HumanoidRootPart
         end
     end
-end
-
-task.spawn(function()
-    while true do
-        updateMobCache()
-        task.wait(0.05)
-    end
-end)
-
-local function findTarget()
+    local roots = getMonsterRoots()
+    local closestMob = nil
+    local shortestDist = math.huge
     local myHRP = getHRP()
-    if not myHRP then return end
-
-    local closest, dist = nil, 1e9
-
-    for i = 1, #MobCache do
-        local mob = MobCache[i]
-        if Settings.Monsters[mob.Name] then
-            local hrp = mob:FindFirstChild("HumanoidRootPart")
-            local hum = mob:FindFirstChildOfClass("Humanoid")
-
-            if hrp and hum and hum.Health > 0 then
-                local d = (myHRP.Position - hrp.Position).Magnitude
-                if d < dist then
-                    dist = d
-                    closest = mob
+    if not myHRP then return nil end
+    for _, root in ipairs(roots) do
+        for _, mob in ipairs(root:GetDescendants()) do
+            if mob:IsA("Model") and mob:FindFirstChild("HumanoidRootPart") then
+                if Settings.Monsters[mob.Name] then
+                    local hum = mob:FindFirstChildOfClass("Humanoid")
+                    if hum and hum.Health > 0 then
+                        local dist = (myHRP.Position - mob.HumanoidRootPart.Position).Magnitude
+                        if dist < shortestDist then
+                            shortestDist = dist
+                            closestMob = mob
+                        end
+                    end
                 end
             end
         end
     end
-
-    CurrentTarget = closest
-    return closest, closest and closest:FindFirstChild("HumanoidRootPart")
+    CurrentTarget = closestMob
+    return closestMob, (closestMob and closestMob.HumanoidRootPart)
 end
 
 local function bringMonsters(targetHRP)
     if not Settings.BringMob or not targetHRP then return end
-
-    local name = targetHRP.Parent.Name
-
-    for i = 1, #MobCache do
-        local mob = MobCache[i]
-        if mob.Name == name and mob ~= targetHRP.Parent then
-            local hrp = mob:FindFirstChild("HumanoidRootPart")
-            local hum = mob:FindFirstChildOfClass("Humanoid")
-
-            if hrp and hum and hum.Health > 0 then
-                hrp.CFrame = targetHRP.CFrame
-                hrp.CanCollide = false
+    local roots = getMonsterRoots()
+    for _, root in ipairs(roots) do
+        for _, mob in ipairs(root:GetDescendants()) do
+            if mob:IsA("Model") and mob:FindFirstChild("HumanoidRootPart") and mob.Name == targetHRP.Parent.Name then
+                if mob ~= targetHRP.Parent then
+                    local hum = mob:FindFirstChildOfClass("Humanoid")
+                    if hum and hum.Health > 0 then
+                        mob.HumanoidRootPart.CFrame = targetHRP.CFrame
+                        mob.HumanoidRootPart.CanCollide = false
+                    end
+                end
             end
         end
     end
@@ -217,66 +200,55 @@ end
 local skillLoopRunning = false
 
 local function AutoFarmSkillLoop()
-    if _G.SkillLoop then return end
-    _G.SkillLoop = true
+    if skillLoopRunning then return end
+    skillLoopRunning = true
 
     while Settings.Enabled do
         task.wait(0.3)
-
         if CurrentTarget and player.Character then
-            for key, v in pairs(Settings.Skills) do
-                if v then
+            for key, isEnabled in pairs(Settings.Skills) do
+                if isEnabled and Settings.Enabled then
                     PressKey(key)
                 end
             end
         end
     end
 
-    _G.SkillLoop = nil
+    skillLoopRunning = false
 end
 
-local lastSkill = 0
-
 local function AutoFarmLoop()
-    if _G.FarmLoop then return end
-    _G.FarmLoop = true
+    task.spawn(AutoFarmSkillLoop)
 
     while Settings.Enabled do
         RunService.Heartbeat:Wait()
 
-        local myHRP = getHRP()
-        if not myHRP then continue end
+        pcall(function()
+            local myHRP = getHRP()
+            local mobModel, mobHRP = findTarget()
 
-        local mob, hrp = findTarget()
-        if not mob or not hrp then continue end
+            if mobModel and mobHRP then
+                equipTool()
+                if not pressedFOnce and Settings.Tool == "Kirito" then
+                    local char = player.Character
+                    if char and char:FindFirstChild("Kirito") then
+                        PressKey("F")
+                        pressedFOnce = true
+                    end
+                end
 
-        equipTool()
+                if Settings.BringMob then
+                    bringMonsters(mobHRP)
+                end
 
-        if Settings.BringMob then
-            bringMonsters(hrp)
-        end
+                local targetCFrame = getFarmCFrame(mobHRP)
+                myHRP.CFrame = CFrame.lookAt(targetCFrame.Position, mobHRP.Position)
+                myHRP.Velocity = Vector3.new(0,0,0)
 
-        local cf = getFarmCFrame(hrp)
-        myHRP.CFrame = CFrame.lookAt(cf.Position, hrp.Position)
-        myHRP.Velocity = Vector3.zero
-
-        for key, v in pairs(Settings.Skills) do
-            if v then
-                PressKey(key)
+                game:GetService("ReplicatedStorage").BridgeNet2.dataRemoteEvent:FireServer({[1] = {[1] = "Skill",[2] = "A",},[2] = "",})
             end
-        end
-
-        local now = os.clock()
-        if now - lastSkill > 0.2 then
-            lastSkill = now
-            ReplicatedStorage.BridgeNet2.dataRemoteEvent:FireServer({
-                [1] = {[1] = "Skill",[2] = "A"},
-                [2] = "\4"
-            })
-        end
+        end)
     end
-
-    _G.FarmLoop = nil
 end
 
 local function StandAutoSkillLoop()
@@ -351,13 +323,6 @@ local function AutoFarmMoneyLoop()
     Settings.Enabled = false
 end
 
-local function StoreTool(tool)
-    if tool:IsA("Tool") and Settings.SelectedStoreItem[tool.Name] then
-        task.wait(0.1)
-        ReplicatedStorage.System.Inv.Inventory:InvokeServer("Add", tool.Name)
-    end
-end
-
 local function AutoCraftLoop()
     if craftconn then craftconn:Disconnect() end
 
@@ -393,7 +358,15 @@ local function clickGuiButton(buttonPath)
     return false
 end
 
-local pressedFOnce = false
+local function CollectItems()
+    for _, item in ipairs(player.Backpack:GetChildren()) do
+        if item:IsA("Tool") and item.Name ~= Settings.Tool then
+            pcall(function()
+                ReplicatedStorage.System.Inv.Inventory:InvokeServer("Add", item.Name)
+            end)
+        end
+    end
+end
 
 local function GetAllRaidMobs()
     local mobs = {}
