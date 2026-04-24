@@ -1258,8 +1258,10 @@ Tabs.Settings:AddToggle("AFK", {
     Callback = function(v)
         if v then
             RunService:Set3dRenderingEnabled(false)
+            setfpscap(30)
         else
             RunService:Set3dRenderingEnabled(true)
+            setfpscap(60)
         end
     end
 })
