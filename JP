@@ -1379,57 +1379,53 @@ Tabs.Auto:AddToggle("AutoGuarantee", {
     end
 })
 
-local SelectedRace = "None"
-local SelectedTrait = "None"
-local SelectedClan = "None"
+local SelectedRaces = {}
+local SelectedTraits = {}
+local SelectedClans = {}
 
 getgenv().AutoRaceLoop = false
 getgenv().AutoTraitLoop = false
 getgenv().AutoClanLoop = false
 
-local isUpdatingRace = false
-local isUpdatingTrait = false
-local isUpdatingClan = false
-
 local RaceDropdown = Tabs.Reroll:AddDropdown("SelectRace", {
     Title = "Select Race",
-    Values = {"Celestial Dragon","Shadow", "Undead"},
-    Multi = false,
-    Default = "None",
+    Values = {"Celestial Dragon", "Shadow", "Undead"},
+    Multi = true,
+    Default = {},
 })
 
 local TraitDropdown = Tabs.Reroll:AddDropdown("SelectTrait", {
     Title = "Select Trait",
     Values = {"D-Rose", "Warlord", "Assasin"},
-    Multi = false,
-    Default = "None",
+    Multi = true,
+    Default = {},
 })
 
 local ClanDropdown = Tabs.Reroll:AddDropdown("SelectClan", {
     Title = "Select Clan",
     Values = {"Yamazaki", "Gojo", "Kamado"},
-    Multi = false,
-    Default = "None",
+    Multi = true,
+    Default = {},
 })
 
 RaceDropdown:OnChanged(function(Value)
-    SelectedRace = Value
+    SelectedRaces = Value
 end)
 
 TraitDropdown:OnChanged(function(Value)
-    SelectedTrait = Value
+    SelectedTraits = Value
 end)
 
 ClanDropdown:OnChanged(function(Value)
-    SelectedClan = Value
+    SelectedClans = Value
 end)
 
-local RaceToggle = Tabs.Reroll:AddToggle("AutoRaceToggle", {
+-- Auto Race
+local RaceToggle = Tabs.Reroll:AddToggle("AutoRace", {
     Title = "Auto Roll Race",
     Default = false,
     Callback = function(v)
         getgenv().AutoRaceLoop = v
-        
         if v then
             task.spawn(function()
                 while getgenv().AutoRaceLoop do
@@ -1437,13 +1433,12 @@ local RaceToggle = Tabs.Reroll:AddToggle("AutoRaceToggle", {
                     local RacePath = player:FindFirstChild("ItemUsing") and player.ItemUsing:FindFirstChild("Race")
                     
                     if RacePath then
-                        if RacePath.Value == SelectedRace then
+                        if SelectedRaces[RacePath.Value] then
                             Fluent:Notify({
                                 Title = "Auto Race",
-                                Content = "You Got" .. SelectedRace,
+                                Content = "You Got " .. RacePath.Value,
                                 Duration = 3
                             })
-                            
                             getgenv().AutoRaceLoop = false
                             RaceToggle:SetValue(false)
                             break
@@ -1463,7 +1458,6 @@ local TraitToggle = Tabs.Reroll:AddToggle("AutoTrait", {
     Default = false,
     Callback = function(v)
         getgenv().AutoTraitLoop = v
-        
         if v then
             task.spawn(function()
                 while getgenv().AutoTraitLoop do
@@ -1471,13 +1465,12 @@ local TraitToggle = Tabs.Reroll:AddToggle("AutoTrait", {
                     local TraitPath = player:FindFirstChild("ItemUsing") and player.ItemUsing:FindFirstChild("Trait")
                     
                     if TraitPath then
-                        if TraitPath.Value == SelectedTrait then
+                        if SelectedTraits[TraitPath.Value] then
                             Fluent:Notify({
                                 Title = "Auto Trait",
-                                Content = "You Got" .. SelectedTrait,
+                                Content = "You Got " .. TraitPath.Value,
                                 Duration = 3
                             })
-                            
                             getgenv().AutoTraitLoop = false
                             TraitToggle:SetValue(false)
                             break
@@ -1492,12 +1485,11 @@ local TraitToggle = Tabs.Reroll:AddToggle("AutoTrait", {
     end
 })
 
-local ClanToggle = Tabs.Reroll:AddToggle("AutoClanToggle", {
+local ClanToggle = Tabs.Reroll:AddToggle("AutoClan", {
     Title = "Auto Roll Clan",
     Default = false,
     Callback = function(v)
         getgenv().AutoClanLoop = v
-        
         if v then
             task.spawn(function()
                 while getgenv().AutoClanLoop do
@@ -1505,13 +1497,12 @@ local ClanToggle = Tabs.Reroll:AddToggle("AutoClanToggle", {
                     local ClanPath = player:FindFirstChild("ItemUsing") and player.ItemUsing:FindFirstChild("Clan")
                     
                     if ClanPath then
-                        if ClanPath.Value == SelectedClan then
+                        if SelectedClans[ClanPath.Value] then
                             Fluent:Notify({
                                 Title = "Auto Clan",
-                                Content = "You Got" .. SelectedClan,
+                                Content = "You Got " .. ClanPath.Value,
                                 Duration = 3
                             })
-                            
                             getgenv().AutoClanLoop = false
                             ClanToggle:SetValue(false)
                             break
