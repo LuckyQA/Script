@@ -46,6 +46,7 @@ local Tabs = {
 	Boss = Window:AddTab({ Title = "Boss", Icon = "box" }),
 	Raid = Window:AddTab({ Title = "Raid", Icon = "box" }),
     Auto = Window:AddTab({ Title = "Auto", Icon = "refresh-cw" }),
+    Reroll = Window:AddTab({ Title = "Reroll", Icon = "refresh-cw" }),
     Skills = Window:AddTab({ Title = "Skills", Icon = "swords" }),
     Teleport = Window:AddTab({ Title = "Teleport", Icon = "map-pin" }),
     Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
@@ -99,6 +100,31 @@ local LevelConfigs = {
     {Min = 2500, Max = 60000, Monster = "Morioh Student", Island = "Jojo Island"},
     {Min = 60000, Max = 110000, Monster = "Chinese Warrior", Island = "Rush Island"},
     {Min = 110000, Max = math.huge, Monster = "Weak Slayer", Island = "Demon Island"}
+}
+
+local SelectedItems = {} 
+getgenv().AutoGuaranteeLoop = false
+local isUpdating = false
+
+local OrderedNames = {
+    "Instakill Sword", "Sukuna Finger", "Six Eye", "Gokumonkyo",
+    "Hogyoku", "Aizen Sword", "Betrayer Cloak", "Itachi Headband",
+    "Itachi Eye", "UI Core", "Crescent Moon", "Moon Katana",
+    "Akaza Shirt", "Ice Compass", "Black Clothes", "Kamish Dagger"
+}
+
+local ItemConfigs = {
+    ["Hogyoku"]         = {conflicts = {"Aizen Sword"}},
+    ["Aizen Sword"]     = {conflicts = {"Hogyoku"}},
+    ["Betrayer Cloak"]  = {conflicts = {"Itachi Headband", "Itachi Eye"}},
+    ["Itachi Headband"] = {conflicts = {"Itachi Eye", "Betrayer Cloak"}},
+    ["Itachi Eye"]      = {conflicts = {"Betrayer Cloak", "Itachi Headband"}},
+    ["Crescent Moon"]   = {conflicts = {"Moon Katana"}},
+    ["Moon Katana"]     = {conflicts = {"Crescent Moon"}},
+    ["Akaza Shirt"]     = {conflicts = {"Ice Compass"}},
+    ["Ice Compass"]     = {conflicts = {"Akaza Shirt"}},
+    ["Black Clothes"]   = {conflicts = {"Kamish Dagger"}},
+    ["Kamish Dagger"]   = {conflicts = {"Black Clothes"}}
 }
 
 local CurrentTarget = nil
@@ -972,56 +998,6 @@ local function AutoSummonGojoLoop()
     end
 end
 
-_G.Toggles = _G.Toggles or {}
-
-local function CreateClaimToggle(itemName, targetText, conflicts)
-    local toggleKey = "Auto" .. itemName:gsub(" ", "")
-    getgenv()[toggleKey] = false
-
-    _G.Toggles[toggleKey] = Tabs.Auto:AddToggle(toggleKey, {
-        Title = "Auto Claim " .. itemName,
-        Default = false,
-        Callback = function(v)
-            getgenv()[toggleKey] = v
-            
-            if v then
-                if conflicts and type(conflicts) == "table" then
-                    for _, otherItem in pairs(conflicts) do
-                        local otherKey = "Auto" .. otherItem:gsub(" ", "")
-                        
-                        if _G.Toggles[otherKey] then
-                            getgenv()[otherKey] = false
-                            _G.Toggles[otherKey]:SetValue(false)
-                        end
-                    end
-                end
-
-                task.spawn(function()
-                    while getgenv()[toggleKey] do
-                        local playerGui = player:FindFirstChild("PlayerGui")
-                        local mainGui = playerGui and playerGui:FindFirstChild("MainGui")
-                        
-                        if mainGui then
-                            local itemPath = mainGui.GUARANTEE.Main:FindFirstChild(itemName)
-                            local label = itemPath and itemPath.Frame:FindFirstChild("TextLabel1", true)
-
-                            if label then
-                                local current, goal = label.Text:match("(%d+)/(%d+)")
-                                if current and goal and tonumber(current) >= tonumber(goal) then
-                                    game:GetService("ReplicatedStorage").System.Guarantee:FireServer(itemName)
-                                    task.wait(0.1)
-                                    game:GetService("ReplicatedStorage").System.Inv.Inventory:InvokeServer("Add", itemName)
-                                end
-                            end
-                        end
-                        task.wait(1)
-                    end
-                end)
-            end
-        end
-    })
-end
-
 local MonsterDrop = Tabs.Main:AddDropdown("MonsterDrop", {
     Title = "Select Monsters",
     Values = {"None"},
@@ -1323,22 +1299,232 @@ Tabs.Auto:AddToggle("AutoStoreToggle", {
     end 
 })
 
-CreateClaimToggle("Instakill Sword", "10/10 Boss Kill", nil)
-CreateClaimToggle("Sukuna Finger", "7/7 Boss Kill", nil)
-CreateClaimToggle("Six Eye", "35/35 Boss Kill", nil)
-CreateClaimToggle("Gokumonkyo", "15/15 Crafted", nil)
-CreateClaimToggle("Hogyoku", "8/8 Boss Kill", {"Aizen Sword"})
-CreateClaimToggle("Aizen Sword", "25/25 Boss Kill", {"Hogyoku"})
-CreateClaimToggle("Betrayer Cloak", "15/15 Boss Kill", {"Itachi Headband","Itachi Eye"})
-CreateClaimToggle("Itachi Headband", "5/5 Boss Kill", {"Itachi Eye","Betrayer Cloak"})
-CreateClaimToggle("Itachi Eye", "20/20 Boss Kill", {"Betrayer Cloak", "Itachi Headband"})
-CreateClaimToggle("UI Core", "25/25 Boss Kill", nil)
-CreateClaimToggle("Crescent Moon", "30/30 Boss Kill", {"Moon Katana"})
-CreateClaimToggle("Moon Katana", "50/50 Boss Kill", {"Crescent Moon"})
-CreateClaimToggle("Akaza Shirt", "25/25 Boss Kill", {"Ice Compass"})
-CreateClaimToggle("Ice Compass", "15/15 Boss Kill", {"Akaza Shirt"})
-CreateClaimToggle("Black Clothes", "25/25 Boss Kill", {"Kamish Dagger"})
-CreateClaimToggle("Kamish Dagger", "50/50 Boss Kill", {"Black Clothes"})
+local MultiDropdown = Tabs.Auto:AddDropdown("SelectedGuaranteeItems", {
+    Title = "Select Items",
+    Values = OrderedNames,
+    Multi = true,
+    Default = {},
+})
+
+MultiDropdown:OnChanged(function(Value)
+    if isUpdating then return end
+    
+    local latestAdded = nil
+    local currentSelection = {}
+
+    for item, state in pairs(Value) do
+        if state then
+            currentSelection[item] = true
+            if not SelectedItems[item] then
+                latestAdded = item
+            end
+        end
+    end
+
+    if latestAdded and ItemConfigs[latestAdded] then
+        local conflicts = ItemConfigs[latestAdded].conflicts
+        local needsUpdate = false
+        
+        for _, conflictName in ipairs(conflicts) do
+            if currentSelection[conflictName] then
+                currentSelection[conflictName] = nil
+                needsUpdate = true
+            end
+        end
+
+        if needsUpdate then
+            isUpdating = true
+            MultiDropdown:SetValue(currentSelection)
+            isUpdating = false
+        end
+    end
+
+    SelectedItems = currentSelection
+end)
+
+Tabs.Auto:AddToggle("AutoGuarantee", {
+    Title = "Auto Guarantee",
+    Default = false,
+    Callback = function(v)
+        getgenv().AutoGuaranteeLoop = v
+        if v then
+            task.spawn(function()
+                while getgenv().AutoGuaranteeLoop do
+                    pcall(function()
+                        local player = game.Players.LocalPlayer
+                        local mainGui = player.PlayerGui:FindFirstChild("MainGui")
+                        
+                        if mainGui then
+                            for itemName, isEnabled in pairs(SelectedItems) do
+                                if isEnabled then
+                                    local itemPath = mainGui.GUARANTEE.Main:FindFirstChild(itemName)
+                                    local label = itemPath and itemPath.Frame:FindFirstChild("TextLabel1", true)
+
+                                    if label then
+                                        local current, goal = label.Text:match("(%d+)/(%d+)")
+                                        if current and goal and tonumber(current) >= tonumber(goal) then
+                                            game:GetService("ReplicatedStorage").System.Guarantee:FireServer(itemName)
+                                            task.wait(0.1)
+                                            game:GetService("ReplicatedStorage").System.Inv.Inventory:InvokeServer("Add", itemName)
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end)
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
+local SelectedRace = "None"
+local SelectedTrait = "None"
+local SelectedClan = "None"
+
+getgenv().AutoRaceLoop = false
+getgenv().AutoTraitLoop = false
+getgenv().AutoClanLoop = false
+
+local isUpdatingRace = false
+local isUpdatingTrait = false
+local isUpdatingClan = false
+
+local RaceDropdown = Tabs.Reroll:AddDropdown("SelectRace", {
+    Title = "Select Race",
+    Values = {"Celestial Dragon","Shadow", "Undead"},
+    Multi = false,
+    Default = "None",
+})
+
+local TraitDropdown = Tabs.Reroll:AddDropdown("SelectTrait", {
+    Title = "Select Trait",
+    Values = {"D-Rose", "Warlord", "Assasin"},
+    Multi = false,
+    Default = "None",
+})
+
+local ClanDropdown = Tabs.Reroll:AddDropdown("SelectClan", {
+    Title = "Select Clan",
+    Values = {"Yamazaki", "Gojo", "Kamado"},
+    Multi = false,
+    Default = "None",
+})
+
+RaceDropdown:OnChanged(function(Value)
+    SelectedRace = Value
+end)
+
+TraitDropdown:OnChanged(function(Value)
+    SelectedTrait = Value
+end)
+
+ClanDropdown:OnChanged(function(Value)
+    SelectedClan = Value
+end)
+
+local RaceToggle = Tabs.Reroll:AddToggle("AutoRaceToggle", {
+    Title = "Auto Roll Race",
+    Default = false,
+    Callback = function(v)
+        getgenv().AutoRaceLoop = v
+        
+        if v then
+            task.spawn(function()
+                while getgenv().AutoRaceLoop do
+                    local player = game.Players.LocalPlayer
+                    local RacePath = player:FindFirstChild("ItemUsing") and player.ItemUsing:FindFirstChild("Race")
+                    
+                    if RacePath then
+                        if RacePath.Value == SelectedRace then
+                            Fluent:Notify({
+                                Title = "Auto Race",
+                                Content = "You Got" .. SelectedRace,
+                                Duration = 3
+                            })
+                            
+                            getgenv().AutoRaceLoop = false
+                            RaceToggle:SetValue(false)
+                            break
+                        else
+                            game:GetService("ReplicatedStorage"):WaitForChild("System"):WaitForChild("RaceFunction"):InvokeServer()
+                        end
+                    end
+                    task.wait()
+                end
+            end)
+        end
+    end
+})
+
+local TraitToggle = Tabs.Reroll:AddToggle("AutoTrait", {
+    Title = "Auto Roll Trait",
+    Default = false,
+    Callback = function(v)
+        getgenv().AutoTraitLoop = v
+        
+        if v then
+            task.spawn(function()
+                while getgenv().AutoTraitLoop do
+                    local player = game.Players.LocalPlayer
+                    local TraitPath = player:FindFirstChild("ItemUsing") and player.ItemUsing:FindFirstChild("Trait")
+                    
+                    if TraitPath then
+                        if TraitPath.Value == SelectedTrait then
+                            Fluent:Notify({
+                                Title = "Auto Trait",
+                                Content = "You Got" .. SelectedTrait,
+                                Duration = 3
+                            })
+                            
+                            getgenv().AutoTraitLoop = false
+                            TraitToggle:SetValue(false)
+                            break
+                        else
+                            game:GetService("ReplicatedStorage"):WaitForChild("System"):WaitForChild("TraitFunction"):InvokeServer()
+                        end
+                    end
+                    task.wait()
+                end
+            end)
+        end
+    end
+})
+
+local ClanToggle = Tabs.Reroll:AddToggle("AutoClanToggle", {
+    Title = "Auto Roll Clan",
+    Default = false,
+    Callback = function(v)
+        getgenv().AutoClanLoop = v
+        
+        if v then
+            task.spawn(function()
+                while getgenv().AutoClanLoop do
+                    local player = game.Players.LocalPlayer
+                    local ClanPath = player:FindFirstChild("ItemUsing") and player.ItemUsing:FindFirstChild("Clan")
+                    
+                    if ClanPath then
+                        if ClanPath.Value == SelectedClan then
+                            Fluent:Notify({
+                                Title = "Auto Clan",
+                                Content = "You Got" .. SelectedClan,
+                                Duration = 3
+                            })
+                            
+                            getgenv().AutoClanLoop = false
+                            ClanToggle:SetValue(false)
+                            break
+                        else
+                            game:GetService("ReplicatedStorage"):WaitForChild("System"):WaitForChild("ClanFunction"):InvokeServer()
+                        end
+                    end
+                    task.wait()
+                end
+            end)
+        end
+    end
+})
 
 for _, k in ipairs({"Z", "X", "C", "V", "F"}) do
     Tabs.Skills:AddToggle("Skill"..k, {
