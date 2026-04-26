@@ -73,6 +73,10 @@ local Settings = {
     Distance = 10,
     Skills = { Z = false, X = false, C = false, V = false, F = false },
     SelectedCraftItem = "Gojo Meat",
+    SelectedBoss = "None",
+    SelectedSpecial = "None",
+    AutoSummonBoss = false,
+    AutoSpecialSummon = false,
 }
 
 local IslandLocations = {
@@ -821,182 +825,56 @@ local function AutoRaidInf()
     end
 end
 
-local function AutoSummonSukunaLoop()
-    while Settings.AutoSukuna do
-        task.wait(0.1)
-        pcall(function()
-            local bossIsland = workspace:FindFirstChild("Mobs") and workspace.Mobs:FindFirstChild("Ocean")
-            local SukunaExist = bossIsland and bossIsland:FindFirstChild("Sukuna")
+task.spawn(function()
+    while true do
+        if Settings.AutoSummonBoss and Settings.SelectedBoss ~= "None" then
+            pcall(function()
+                local bossName = Settings.SelectedBoss
+                local bossIsland = workspace:FindFirstChild("Mobs") and workspace.Mobs:FindFirstChild("Ocean")
+                local bossExist = bossIsland and bossIsland:FindFirstChild(bossName)
 
-            if not SukunaExist then
-                game:GetService("ReplicatedStorage"):WaitForChild("System"):WaitForChild("Summon"):FireServer(unpack({"Sukuna"}))
-            end
-        end)
-    end
-end
-
-local function AutoSummonFlashyLoop()
-    while Settings.AutoFlashy do
-        task.wait(0.1)
-        pcall(function()
-            local bossIsland = workspace:FindFirstChild("Mobs") and workspace.Mobs:FindFirstChild("Ocean")
-            local flashyExist = bossIsland and bossIsland:FindFirstChild("Flashy Flash")
-
-            if not flashyExist then
-                game:GetService("ReplicatedStorage"):WaitForChild("System"):WaitForChild("Summon"):FireServer(unpack({"Flashy Flash"}))
-            end
-        end)
-    end
-end
-
-local function AutoSummonAizenLoop()
-    while Settings.AutoAizen do
-        task.wait(0.1)
-        pcall(function()
-            local bossIsland = workspace:FindFirstChild("Mobs") and workspace.Mobs:FindFirstChild("Ocean")
-            local AizenExist = bossIsland and bossIsland:FindFirstChild("Aizen")
-
-            if not AizenExist then
-                game:GetService("ReplicatedStorage"):WaitForChild("System"):WaitForChild("Summon"):FireServer(unpack({"Aizen"}))
-            end
-        end)
-    end
-end
-
-local function AutoSummonKokushiboLoop()
-    while Settings.AutoKokushibo do
-        task.wait(0.1)
-        pcall(function()
-            local bossIsland = workspace:FindFirstChild("Mobs") and workspace.Mobs:FindFirstChild("Ocean")
-            local KokushiboExist = bossIsland and bossIsland:FindFirstChild("Kokushibo")
-
-            if not KokushiboExist then
-                game:GetService("ReplicatedStorage"):WaitForChild("System"):WaitForChild("Summon"):FireServer(unpack({"Kokushibo"}))
-            end
-        end)
-    end
-end
-
-local function AutoSummonSungjinwooLoop()
-    while Settings.AutoSungjinwoo do
-        task.wait(0.1)
-        pcall(function()
-            local bossIsland = workspace:FindFirstChild("Mobs") and workspace.Mobs:FindFirstChild("Ocean")
-            local SungjinwooExist = bossIsland and bossIsland:FindFirstChild("Sung Jinwoo")
-
-            if not SungjinwooExist then
-                game:GetService("ReplicatedStorage"):WaitForChild("System"):WaitForChild("Summon"):FireServer(unpack({"Sung Jinwoo"}))
-            end
-        end)
-    end
-end
-
-local function DioClickAction()
-    local dioNPC = workspace.NPC:FindFirstChild("DioNPC")
-    if dioNPC then
-        local myHRP = getHRP()
-        local char = player.Character
-        if myHRP and char then
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                humanoid:UnequipTools()
-            end
-            local npcPos = dioNPC:GetPivot().Position
-            myHRP.CFrame = dioNPC:GetPivot() * CFrame.new(0, 0, 1.8)
-            myHRP.CFrame = CFrame.lookAt(myHRP.Position, Vector3.new(npcPos.X, myHRP.Position.Y, npcPos.Z))
-            workspace.CurrentCamera.CFrame = CFrame.lookAt(workspace.CurrentCamera.CFrame.Position, npcPos)
-            task.wait(0.2)
-            local viewportSize = workspace.CurrentCamera.ViewportSize
-            local centerX, centerY = viewportSize.X / 2, viewportSize.Y / 2
-            VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, true, game, 0)
-            task.wait(0.05)
-            VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, false, game, 0)
-        end
-    end
-end
-
-local function AutoSummonLoop()
-    while Settings.AutoSummon do
-        task.wait(0.1)
-        pcall(function()
-            local dioExist = false
-            local mobs = workspace:FindFirstChild("Mobs")
-            if mobs and mobs:FindFirstChild("DIO Island") and mobs["DIO Island"]:FindFirstChild("DIO Overheaven") then
-                dioExist = true
-            end
-            if not dioExist then
-                local hasArrow = player.Backpack:FindFirstChild("Heavenly Arrow") or player.Character:FindFirstChild("Heavenly Arrow")
-                if not hasArrow then
-                    ReplicatedStorage.System.Inv.Inventory:InvokeServer("Remove", "Heavenly Arrow")
-                    task.wait(0.8)
+                if not bossExist then
+                    game:GetService("ReplicatedStorage"):WaitForChild("System"):WaitForChild("Summon"):FireServer(unpack({bossName}))
                 end
-                DioClickAction()
-            end
-        end)
-    end
-end
-
-local function GojoClickAction()
-    local gojoNPC = workspace.NPC:FindFirstChild("GojoSummon")
-
-    if gojoNPC then
-        local myHRP = getHRP()
-        local char = player.Character
-
-        if myHRP and char then
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                humanoid:UnequipTools()
-            end
-
-			local targetCFrame = gojoNPC:GetPivot() * CFrame.new(0, 0, -3)
-            myHRP.CFrame = CFrame.lookAt(targetCFrame.Position, gojoNPC:GetPivot().Position)
-
-            local camera = workspace.CurrentCamera
-            local npcPos = gojoNPC:GetPivot().Position
-            camera.CameraType = Enum.CameraType.Scriptable
-            camera.CFrame = CFrame.lookAt(
-                npcPos + Vector3.new(0, 2, 5),
-                npcPos
-            )
-
-            task.wait()
-
-            local viewportSize = camera.ViewportSize
-            local centerX = viewportSize.X / 2
-            local centerY = viewportSize.Y / 2
-
-            for i = 1, 3 do
-                VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, true, game, 0)
-                task.wait()
-                VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, false, game, 0)
-                task.wait()
-            end
-            camera.CameraType = Enum.CameraType.Custom
+            end)
         end
+        task.wait(0.5)
     end
-end
+end)
 
-local function AutoSummonGojoLoop()
-    while Settings.AutoGojo do
-        task.wait(0.1)
-        pcall(function()
-            local gojoExist = false
-            local mobs = workspace:FindFirstChild("Mobs")
-            if mobs and mobs:FindFirstChild("Ocean") and mobs["Ocean"]:FindFirstChild("Gojo") then
-                gojoExist = true
-            end
-            if not gojoExist then
-                local hasArrow = player.Backpack:FindFirstChild("Gojo Meat") or player.Character:FindFirstChild("Gojo Meat")
-                if not hasArrow then
-                    ReplicatedStorage.System.Inv.Inventory:InvokeServer("Remove", "Gojo Meat")
-                    task.wait()
+task.spawn(function()
+    while true do
+        if Settings.AutoSpecialSummon and Settings.SelectedSpecial ~= "None" then
+            pcall(function()
+                local target = Settings.SelectedSpecial
+                local mobs = workspace:FindFirstChild("Mobs")
+                
+                if target == "Gojo" then
+                    local gojoExist = mobs and mobs:FindFirstChild("Ocean") and mobs["Ocean"]:FindFirstChild("Gojo")
+                    if not gojoExist then
+                        local hasItem = player.Backpack:FindFirstChild("Gojo Meat") or player.Character:FindFirstChild("Gojo Meat")
+                        if not hasItem then
+                            game:GetService("ReplicatedStorage").System.Inv.Inventory:InvokeServer("Remove", "Gojo Meat")
+                            task.wait(0.5)
+                        end
+                        GojoClickAction()
+                    end
+                elseif target == "DIO" then
+                    local dioExist = mobs and mobs:FindFirstChild("DIO Island") and mobs["DIO Island"]:FindFirstChild("DIO Overheaven")
+                    if not dioExist then
+                        local hasArrow = player.Backpack:FindFirstChild("Heavenly Arrow") or player.Character:FindFirstChild("Heavenly Arrow")
+                        if not hasArrow then
+                            game:GetService("ReplicatedStorage").System.Inv.Inventory:InvokeServer("Remove", "Heavenly Arrow")
+                            task.wait(0.5)
+                        end
+                        DioClickAction()
+                    end
                 end
-                GojoClickAction()
-            end
-        end)
+            end)
+        end
+        task.wait(1)
     end
-end
+end)
 
 local MonsterDrop = Tabs.Main:AddDropdown("MonsterDrop", {
     Title = "Select Monsters",
@@ -1139,81 +1017,34 @@ Tabs.Main:AddToggle("AutoHit", {
     end
 })
 
-Tabs.Boss:AddToggle("Auto Sung Jinwoo", {
-    Title = "Auto Summon Sung Jinwoo",
-    Default = false,
-    Callback = function(v)
-        Settings.AutoSungjinwoo = v
-        if v then
-            task.spawn(AutoSummonSungjinwooLoop)
-        end
-    end
+Tabs.Boss:AddDropdown("DropdownAutoBoss", {
+    Title = "Select Boss",
+    Values = {"Flashy Flash", "Sukuna", "Aizen", "Kokushibo", "Sung Jinwoo"},
+    Multi = false,
+    Default = "None",
+    Callback = function(v) Settings.SelectedBoss = v end
 })
 
-Tabs.Boss:AddToggle("Auto Kokushibo", {
-    Title = "Auto Summon Kokushibo",
+Tabs.Boss:AddToggle("ToggleAutoBoss", {
+    Title = "Auto Summon Boss",
     Default = false,
-    Callback = function(v)
-        Settings.AutoKokushibo = v
-        if v then
-            task.spawn(AutoSummonKokushiboLoop)
-        end
-    end
+    Callback = function(v) Settings.AutoSummonBoss = v end
 })
 
-Tabs.Boss:AddToggle("Auto Aizen", {
-    Title = "Auto Summon Aizen",
-    Default = false,
-    Callback = function(v)
-        Settings.AutoAizen = v
-        if v then
-            task.spawn(AutoSummonAizenLoop)
-        end
-    end
+Tabs.Boss:AddSection("Special Bosses")
+
+Tabs.Boss:AddDropdown("DropdownSpecialBoss", {
+    Title = "Select Special Boss",
+    Values = {"Gojo", "DIO"},
+    Multi = false,
+    Default = "None",
+    Callback = function(v) Settings.SelectedSpecial = v end
 })
 
-Tabs.Boss:AddToggle("AutoGojo", {
-    Title = "Auto Summon Gojo",
+Tabs.Boss:AddToggle("ToggleSpecialBoss", {
+    Title = "Special Summon",
     Default = false,
-    Callback = function(v)
-        Settings.AutoGojo = v
-        if v then 
-            task.spawn(AutoSummonGojoLoop) 
-        end
-    end
-})
-
-Tabs.Boss:AddToggle("Auto Sukuna", {
-    Title = "Auto Summon Sukuna",
-    Default = false,
-    Callback = function(v)
-        Settings.AutoSukuna = v
-        if v then
-            task.spawn(AutoSummonSukunaLoop)
-        end
-    end
-})
-
-Tabs.Boss:AddToggle("Auto Flashy", {
-    Title = "Auto Summon Flashy Flash",
-    Default = false,
-    Callback = function(v)
-        Settings.AutoFlashy = v
-        if v then
-            task.spawn(AutoSummonFlashyLoop)
-        end
-    end
-})
-
-Tabs.Boss:AddToggle("AutoSummon", {
-    Title = "Auto Summon DIO",
-    Default = false,
-    Callback = function(v)
-        Settings.AutoSummon = v
-        if v then 
-            task.spawn(AutoSummonLoop) 
-        end
-    end
+    Callback = function(v) Settings.AutoSpecialSummon = v end
 })
 
 Tabs.Raid:AddToggle("AutoRaidInf", {
