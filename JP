@@ -1278,10 +1278,12 @@ Tabs.Auto:AddToggle("AutoGuarantee", {
 local SelectedRaces = {}
 local SelectedTraits = {}
 local SelectedClans = {}
+local SelectedCards = {}
 
 getgenv().AutoRaceLoop = false
 getgenv().AutoTraitLoop = false
 getgenv().AutoClanLoop = false
+getgenv().AutoCardLoop = false
 
 local RaceDropdown = Tabs.Reroll:AddDropdown("SelectRace", {
     Title = "Select Race",
@@ -1299,7 +1301,14 @@ local TraitDropdown = Tabs.Reroll:AddDropdown("SelectTrait", {
 
 local ClanDropdown = Tabs.Reroll:AddDropdown("SelectClan", {
     Title = "Select Clan",
-    Values = {"Yamazaki", "Gojo", "Kamado"},
+    Values = {"Gojo", "Kamado", "Ryomen", "Kagenou"},
+    Multi = true,
+    Default = {},
+})
+
+local CardDropdown = Tabs.Reroll:AddDropdown("SelectCard", {
+    Title = "Select Card",
+    Values = {"Justice", "The World", "The Star", "Thoth"},
     Multi = true,
     Default = {},
 })
@@ -1314,6 +1323,10 @@ end)
 
 ClanDropdown:OnChanged(function(Value)
     SelectedClans = Value
+end)
+
+CardDropdown:OnChanged(function(Value)
+    SelectedCards = Value
 end)
 
 local RaceToggle = Tabs.Reroll:AddToggle("AutoRace", {
@@ -1403,6 +1416,38 @@ local ClanToggle = Tabs.Reroll:AddToggle("AutoClan", {
                             break
                         else
                             game:GetService("ReplicatedStorage"):WaitForChild("System"):WaitForChild("ClanFunction"):InvokeServer()
+                        end
+                    end
+                    task.wait()
+                end
+            end)
+        end
+    end
+})
+
+local CardToggle = Tabs.Reroll:AddToggle("AutoCard", {
+    Title = "Auto Roll Card",
+    Default = false,
+    Callback = function(v)
+        getgenv().AutoCardLoop = v
+        if v then
+            task.spawn(function()
+                while getgenv().AutoCardLoop do
+                    local player = game.Players.LocalPlayer
+                    local CardPath = player:FindFirstChild("ItemUsing") and player.ItemUsing:FindFirstChild("Card")
+                    
+                    if CardPath then
+                        if SelectedCards[CardPath.Value] then
+                            Fluent:Notify({
+                                Title = "Auto Card",
+                                Content = "You Got " .. CardPath.Value,
+                                Duration = 3
+                            })
+                            getgenv().AutoCardLoop = false
+                            CardToggle:SetValue(false)
+                            break
+                        else
+                            game:GetService("ReplicatedStorage"):WaitForChild("System"):WaitForChild("CardFunction"):InvokeServer()
                         end
                     end
                     task.wait()
@@ -1522,7 +1567,7 @@ Tabs.Settings:AddToggle("AFK", {
             setfpscap(30)
         else
             RunService:Set3dRenderingEnabled(true)
-            setfpscap(60)
+            setfpscap(1000)
         end
     end
 })
