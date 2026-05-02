@@ -725,6 +725,8 @@ local function AutoRaidRush()
                 if endGui and endGui.Visible then 
                     task.wait(1)
                     if ReplayBtn then clickGuiButton(ReplayBtn) end
+                    task.wait(0.5)
+                    PressKey("J")
                 end
                 task.wait()
             end
