@@ -1084,7 +1084,7 @@ Tabs.Main:AddToggle("AutoHit", {
 
 Tabs.Boss:AddDropdown("DropdownAutoBoss", {
     Title = "Select Boss",
-    Values = {"Flashy Flash", "Sukuna", "Aizen", "Kokushibo", "Sung Jinwoo"},
+    Values = {"Flashy Flash", "Sukuna", "Aizen", "Kokushibo", "Sung Jinwoo", "Okarun"},
     Multi = false,
     Default = "None",
     Callback = function(v) Settings.SelectedBoss = v end
