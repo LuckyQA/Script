@@ -1093,6 +1093,42 @@ Tabs.Boss:AddToggle("ToggleSpecialBoss", {
     Callback = function(v) Settings.AutoSpecialSummon = v end
 })
 
+local TpDisplay = Tabs.Raid:AddParagraph({
+    Title = "Tower Point",
+    Content = "Loading..."
+})
+
+task.spawn(function()
+    while true do
+        if player:FindFirstChild("Data") and player.Data:FindFirstChild("TowerPoint") then
+            local currentTP = player.Data.TowerPoint.Value
+            TpDisplay:SetTitle("Tower Point: " .. tostring(currentTP))
+            TpDisplay:SetDesc(os.date("%H:%M:%S"))
+        else
+            TpDisplay:SetTitle("Tower Point: Not Found")
+        end
+        task.wait(1)
+    end
+end)
+
+local BpDisplay = Tabs.Raid:AddParagraph({
+    Title = "Rush Point",
+    Content = "Loading..."
+})
+
+task.spawn(function()
+    while true do
+        if player:FindFirstChild("Data") and player.Data:FindFirstChild("BP") then
+            local currentBP = player.Data.BP.Value
+            BpDisplay:SetTitle("Rush Point: " .. tostring(currentBP))
+            BpDisplay:SetDesc(os.date("%H:%M:%S"))
+        else
+            BpDisplay:SetTitle("Rush Point: Not Found")
+        end
+        task.wait(1)
+    end
+end)
+
 Tabs.Raid:AddToggle("AutoRaidInf", {
     Title = "Auto Raid Inf",
     Default = false,
