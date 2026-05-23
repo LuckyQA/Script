@@ -46,7 +46,6 @@ local Tabs = {
 	Boss = Window:AddTab({ Title = "Boss", Icon = "box" }),
 	Raid = Window:AddTab({ Title = "Raid", Icon = "box" }),
     Auto = Window:AddTab({ Title = "Auto", Icon = "refresh-cw" }),
-    Reroll = Window:AddTab({ Title = "Reroll", Icon = "refresh-cw" }),
     Skills = Window:AddTab({ Title = "Skills", Icon = "swords" }),
     Teleport = Window:AddTab({ Title = "Teleport", Icon = "map-pin" }),
     Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
@@ -127,8 +126,14 @@ local ItemConfigs = {
     ["Moon Katana"]     = {conflicts = {"Crescent Moon"}},
     ["Akaza Shirt"]     = {conflicts = {"Ice Compass"}},
     ["Ice Compass"]     = {conflicts = {"Akaza Shirt"}},
-    ["Black Clothes"]   = {conflicts = {"Kamish Dagger"}},
-    ["Kamish Dagger"]   = {conflicts = {"Black Clothes"}}
+    ["Black Clothes"]   = {conflicts = {"Morarch Core", "Kamish Dagger"}},
+    ["Kamish Dagger"]   = {conflicts = {"Black Clothes", "Morarch Core"}},
+    ["Morarch Core"]    = {conflicts = {"Black Clothes", "Kamish Dagger"}},
+    ["Golden Ball"]      = {conflicts = {"Betrayer Cloak", "Itachi Headband"}},
+    ["Boxing Clove"]     = {conflicts = {"None"}},
+    ["Energy Drink"]     = {conflicts = {"Chair", "Yamato"}},
+    ["Chair"]     = {conflicts = {"Energy Drink", "Yamato"}},
+    ["Yamato"]     = {conflicts = {"Chair", "Energy Drink"}},
 }
 
 local CurrentTarget = nil
@@ -249,9 +254,12 @@ local function AutoFarmSkillLoop()
     skillLoopRunning = false
 end
 
-local function AutoFarmLoop()
-    task.spawn(AutoFarmSkillLoop)
+local farmLoopRunning = false
 
+local function AutoFarmLoop()
+    if farmLoopRunning then return end
+    farmLoopRunning = true
+    task.spawn(AutoFarmSkillLoop)
     while Settings.Enabled do
         RunService.Heartbeat:Wait()
 
@@ -281,6 +289,7 @@ local function AutoFarmLoop()
             end
         end)
     end
+    farmLoopRunning = false
 end
 
 local function StandAutoSkillLoop()
@@ -871,6 +880,47 @@ local function GojoClickAction()
     end
 end
 
+local function LuffyClickAction()
+    local luffyNPC = workspace.NPC:FindFirstChild("LuffyNPC")
+
+    if luffyNPC then
+        local myHRP = getHRP()
+        local char = player.Character
+
+        if myHRP and char then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid:UnequipTools()
+            end
+
+			local targetCFrame = luffyNPC:GetPivot() * CFrame.new(0, 0, -3)
+            myHRP.CFrame = CFrame.lookAt(targetCFrame.Position, luffyNPC:GetPivot().Position)
+
+            local camera = workspace.CurrentCamera
+            local npcPos = luffyNPC:GetPivot().Position
+            camera.CameraType = Enum.CameraType.Scriptable
+            camera.CFrame = CFrame.lookAt(
+                npcPos + Vector3.new(0, 2, 5),
+                npcPos
+            )
+
+            task.wait()
+
+            local viewportSize = camera.ViewportSize
+            local centerX = viewportSize.X / 2
+            local centerY = viewportSize.Y / 2
+
+            for i = 1, 3 do
+                VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, true, game, 0)
+                task.wait()
+                VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, false, game, 0)
+                task.wait()
+            end
+            camera.CameraType = Enum.CameraType.Custom
+        end
+    end
+end
+
 task.spawn(function()
     while true do
         if Settings.AutoSummonBoss and Settings.SelectedBoss ~= "None" then
@@ -914,6 +964,21 @@ task.spawn(function()
                             task.wait(0.5)
                         end
                         DioClickAction()
+                    end
+                elseif target == "Luffy" then
+                    local luffyExist = mobs and mobs:FindFirstChild("DIO Island") and mobs["DIO Island"]:FindFirstChild("Luffy (Gear5)")
+                    if not luffyExist then
+                        local hasSun = player.Backpack:FindFirstChild("Sun") or player.Character:FindFirstChild("Sun")
+                        local hasCloud = player.Backpack:FindFirstChild("Cloud") or player.Character:FindFirstChild("Cloud")
+                        if not hasSun then
+                            game:GetService("ReplicatedStorage").System.Inv.Inventory:InvokeServer("Remove", "Sun")
+                            task.wait(0.5)
+                        end
+                        if not hasCloud then
+                            game:GetService("ReplicatedStorage").System.Inv.Inventory:InvokeServer("Remove", "Cloud")
+                            task.wait(0.5)
+                        end
+                        LuffyClickAction()
                     end
                 end
             end)
@@ -995,15 +1060,12 @@ Tabs.Main:AddSlider("Dist", {
 
 Tabs.Main:AddToggle("Farm", {
     Title = "Auto Farm",
-    Default = false,
     Callback = function(v)
-    Settings.Enabled = v
-    pressedFOnce = false
-
-    if v then 
-        task.spawn(AutoFarmLoop) 
+        Settings.Enabled = v
+        if v then 
+            task.spawn(AutoFarmLoop)
+        end
     end
-end
 })
 
 Tabs.Main:AddToggle("AutoLevel", {
@@ -1065,7 +1127,7 @@ Tabs.Main:AddToggle("AutoHit", {
 
 Tabs.Boss:AddDropdown("DropdownAutoBoss", {
     Title = "Select Boss",
-    Values = {"Flashy Flash", "Sukuna", "Aizen", "Kokushibo", "Sung Jinwoo", "Okarun"},
+    Values = {"Flashy Flash", "Sukuna", "Aizen", "Kokushibo", "Sung Jinwoo", "Okarun", "Modulo Yuji"},
     Multi = false,
     Default = "None",
     Callback = function(v) Settings.SelectedBoss = v end
@@ -1074,14 +1136,19 @@ Tabs.Boss:AddDropdown("DropdownAutoBoss", {
 Tabs.Boss:AddToggle("ToggleAutoBoss", {
     Title = "Auto Summon Boss",
     Default = false,
-    Callback = function(v) Settings.AutoSummonBoss = v end
+    Callback = function(v)
+        Settings.AutoSummonBoss = v
+        if v and Settings.SelectedBoss then
+            game:GetService("ReplicatedStorage"):WaitForChild("System"):WaitForChild("Summon"):FireServer(Settings.SelectedBoss, true)
+        end
+    end
 })
 
 Tabs.Boss:AddSection("Special Bosses")
 
 Tabs.Boss:AddDropdown("DropdownSpecialBoss", {
     Title = "Select Special Boss",
-    Values = {"Gojo", "DIO"},
+    Values = {"Gojo", "DIO", "Luffy"},
     Multi = false,
     Default = "None",
     Callback = function(v) Settings.SelectedSpecial = v end
@@ -1196,10 +1263,18 @@ Tabs.Auto:AddToggle("AutoStoreToggle", {
         Settings.AutoStore = v
         
         if v then
+            local existingItems = {}
+            for _, item in ipairs(player.Backpack:GetChildren()) do
+                existingItems[item.Name] = true
+            end
+            for _, item in ipairs(player.Character:GetChildren()) do
+                existingItems[item.Name] = true
+            end
+
             task.spawn(function()
                 while Settings.AutoStore do
                     for _, item in ipairs(player.Backpack:GetChildren()) do
-                        if item:IsA("Tool") and item.Name ~= Settings.Tool then
+                        if item:IsA("Tool") and item.Name ~= Settings.Tool and not existingItems[item.Name] then
                             pcall(function()
                                 ReplicatedStorage.System.Inv.Inventory:InvokeServer("Add", item.Name)
                             end)
@@ -1286,188 +1361,6 @@ Tabs.Auto:AddToggle("AutoGuarantee", {
                         end
                     end)
                     task.wait(1)
-                end
-            end)
-        end
-    end
-})
-
-local SelectedRaces = {}
-local SelectedTraits = {}
-local SelectedClans = {}
-local SelectedCards = {}
-
-getgenv().AutoRaceLoop = false
-getgenv().AutoTraitLoop = false
-getgenv().AutoClanLoop = false
-getgenv().AutoCardLoop = false
-
-local RaceDropdown = Tabs.Reroll:AddDropdown("SelectRace", {
-    Title = "Select Race",
-    Values = {"Celestial Dragon", "Shadow", "Undead"},
-    Multi = true,
-    Default = {},
-})
-
-RaceDropdown:OnChanged(function(Value)
-    SelectedRaces = Value
-end)
-
-local RaceToggle = Tabs.Reroll:AddToggle("AutoRace", {
-    Title = "Auto Roll Race",
-    Default = false,
-    Callback = function(v)
-        getgenv().AutoRaceLoop = v
-        if v then
-            task.spawn(function()
-                while getgenv().AutoRaceLoop do
-                    local player = game.Players.LocalPlayer
-                    local RacePath = player:FindFirstChild("ItemUsing") and player.ItemUsing:FindFirstChild("Race")
-                    
-                    if RacePath then
-                        if SelectedRaces[RacePath.Value] then
-                            Fluent:Notify({
-                                Title = "Auto Race",
-                                Content = "You Got " .. RacePath.Value,
-                                Duration = 3
-                            })
-                            getgenv().AutoRaceLoop = false
-                            RaceToggle:SetValue(false)
-                            break
-                        else
-                            game:GetService("ReplicatedStorage"):WaitForChild("System"):WaitForChild("RaceFunction"):InvokeServer()
-                        end
-                    end
-                    task.wait()
-                end
-            end)
-        end
-    end
-})
-
-local TraitDropdown = Tabs.Reroll:AddDropdown("SelectTrait", {
-    Title = "Select Trait",
-    Values = {"D-Rose", "Warlord", "Assasin"},
-    Multi = true,
-    Default = {},
-})
-
-TraitDropdown:OnChanged(function(Value)
-    SelectedTraits = Value
-end)
-
-local TraitToggle = Tabs.Reroll:AddToggle("AutoTrait", {
-    Title = "Auto Roll Trait",
-    Default = false,
-    Callback = function(v)
-        getgenv().AutoTraitLoop = v
-        if v then
-            task.spawn(function()
-                while getgenv().AutoTraitLoop do
-                    local player = game.Players.LocalPlayer
-                    local TraitPath = player:FindFirstChild("ItemUsing") and player.ItemUsing:FindFirstChild("Trait")
-                    
-                    if TraitPath then
-                        if SelectedTraits[TraitPath.Value] then
-                            Fluent:Notify({
-                                Title = "Auto Trait",
-                                Content = "You Got " .. TraitPath.Value,
-                                Duration = 3
-                            })
-                            getgenv().AutoTraitLoop = false
-                            TraitToggle:SetValue(false)
-                            break
-                        else
-                            game:GetService("ReplicatedStorage"):WaitForChild("System"):WaitForChild("TraitFunction"):InvokeServer()
-                        end
-                    end
-                    task.wait()
-                end
-            end)
-        end
-    end
-})
-
-local ClanDropdown = Tabs.Reroll:AddDropdown("SelectClan", {
-    Title = "Select Clan",
-    Values = {"Gojo", "Kamado", "Ryomen", "Kagenou"},
-    Multi = true,
-    Default = {},
-})
-
-ClanDropdown:OnChanged(function(Value)
-    SelectedClans = Value
-end)
-
-local ClanToggle = Tabs.Reroll:AddToggle("AutoClan", {
-    Title = "Auto Roll Clan",
-    Default = false,
-    Callback = function(v)
-        getgenv().AutoClanLoop = v
-        if v then
-            task.spawn(function()
-                while getgenv().AutoClanLoop do
-                    local player = game.Players.LocalPlayer
-                    local ClanPath = player:FindFirstChild("ItemUsing") and player.ItemUsing:FindFirstChild("Clan")
-                    
-                    if ClanPath then
-                        if SelectedClans[ClanPath.Value] then
-                            Fluent:Notify({
-                                Title = "Auto Clan",
-                                Content = "You Got " .. ClanPath.Value,
-                                Duration = 3
-                            })
-                            getgenv().AutoClanLoop = false
-                            ClanToggle:SetValue(false)
-                            break
-                        else
-                            game:GetService("ReplicatedStorage"):WaitForChild("System"):WaitForChild("ClanFunction"):InvokeServer()
-                        end
-                    end
-                    task.wait()
-                end
-            end)
-        end
-    end
-})
-
-local CardDropdown = Tabs.Reroll:AddDropdown("SelectCard", {
-    Title = "Select Card",
-    Values = {"Justice", "The World", "The Star", "Thoth"},
-    Multi = true,
-    Default = {},
-})
-
-CardDropdown:OnChanged(function(Value)
-    SelectedCards = Value
-end)
-
-local CardToggle = Tabs.Reroll:AddToggle("AutoCard", {
-    Title = "Auto Roll Card",
-    Default = false,
-    Callback = function(v)
-        getgenv().AutoCardLoop = v
-        if v then
-            task.spawn(function()
-                while getgenv().AutoCardLoop do
-                    local player = game.Players.LocalPlayer
-                    local CardPath = player:FindFirstChild("ItemUsing") and player.ItemUsing:FindFirstChild("Card")
-                    
-                    if CardPath then
-                        if SelectedCards[CardPath.Value] then
-                            Fluent:Notify({
-                                Title = "Auto Card",
-                                Content = "You Got " .. CardPath.Value,
-                                Duration = 3
-                            })
-                            getgenv().AutoCardLoop = false
-                            CardToggle:SetValue(false)
-                            break
-                        else
-                            game:GetService("ReplicatedStorage"):WaitForChild("System"):WaitForChild("CardFunction"):InvokeServer()
-                        end
-                    end
-                    task.wait()
                 end
             end)
         end
