@@ -966,7 +966,7 @@ task.spawn(function()
                         DioClickAction()
                     end
                 elseif target == "Luffy" then
-                    local luffyExist = mobs and mobs:FindFirstChild("DIO Island") and mobs["DIO Island"]:FindFirstChild("Luffy (Gear5)")
+                    local luffyExist = mobs and mobs:FindFirstChild("Ocean") and mobs["Ocean"]:FindFirstChild("Luffy (Gear5)")
                     if not luffyExist then
                         local hasSun = player.Backpack:FindFirstChild("Sun") or player.Character:FindFirstChild("Sun")
                         local hasCloud = player.Backpack:FindFirstChild("Cloud") or player.Character:FindFirstChild("Cloud")
