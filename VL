@@ -1,0 +1,231 @@
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+
+local Window = Fluent:CreateWindow({
+    Title = "Volleyball Legends",
+    SubTitle = "by Question Hub",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = false,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
+
+local Tabs = {
+    Main = Window:AddTab({ Title = "Main", Icon = "box" }),
+    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
+}
+
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+local Button = Instance.new("ImageButton", ScreenGui)
+
+Button.Size = UDim2.new(0, 60, 0, 60)
+Button.Position = UDim2.new(0, 20, 0, 20)
+Button.BackgroundTransparency = 1
+Button.ZIndex = 9999
+Button.Active = true
+Button.Draggable = true
+Button.Image = "rbxassetid://123661267467256"
+
+local isVisible = true
+Button.MouseButton1Click:Connect(function()
+    isVisible = not isVisible
+    Window:Minimize()
+end)
+
+local indicatorEnabled = false
+local ballSizeMultiplier = 6
+local activeConnections = {}
+local spawnedBalls = {}
+
+local workspace = game:GetService("Workspace")
+
+local function setupBallIndicator(subChild)
+    if not indicatorEnabled then return end
+    
+    if subChild.Name:find("Cube") and subChild:IsA("BasePart") then
+        local clientBall = subChild.Parent
+        if clientBall and not clientBall:FindFirstChild("Ball.001") then
+            local ballPart = Instance.new("Part")
+            ballPart.Name = "Ball.001"
+            ballPart.Shape = Enum.PartType.Ball
+            
+            local finalSize = ballSizeMultiplier * 2 -- แก้ไขการคำนวณให้ถูกต้อง
+            ballPart.Size = Vector3.new(finalSize, finalSize, finalSize)
+            
+            ballPart.CFrame = subChild.CFrame
+            ballPart.Transparency = 0.7
+            ballPart.Color = Color3.fromRGB(0, 255, 0)
+            ballPart.Material = Enum.Material.ForceField
+            ballPart.CanCollide = false
+            ballPart.Anchored = false
+            ballPart.Parent = clientBall
+
+            local weld = Instance.new("WeldConstraint")
+            weld.Part0 = subChild
+            weld.Part1 = ballPart
+            weld.Parent = ballPart
+            
+            table.insert(spawnedBalls, ballPart)
+        end
+    end
+end
+
+local function removeAllIndicators()
+    for _, ball in ipairs(spawnedBalls) do
+        if ball and ball.Parent then
+            ball:Destroy()
+        end
+    end
+    spawnedBalls = {}
+end
+
+local function processClientBall(clientBall)
+    for _, subChild in ipairs(clientBall:GetChildren()) do
+        setupBallIndicator(subChild)
+    end
+
+    local conn = clientBall.ChildAdded:Connect(function(subChild)
+        task.defer(function()
+            setupBallIndicator(subChild)
+        end)
+    end)
+    table.insert(activeConnections, conn)
+end
+
+local function startIndicatorSystem()
+    for _, child in ipairs(workspace:GetChildren()) do
+        if child.Name:find("CLIENT_BALL") then
+            processClientBall(child)
+        end
+    end
+
+    local conn = workspace.ChildAdded:Connect(function(child)
+        if child.Name:find("CLIENT_BALL") then
+            task.defer(function()
+                processClientBall(child)
+            end)
+        end
+    end)
+    table.insert(activeConnections, conn)
+end
+
+local function stopIndicatorSystem()
+    indicatorEnabled = false
+    for _, conn in ipairs(activeConnections) do
+        if conn then
+            conn:Disconnect()
+        end
+    end
+    activeConnections = {}
+    removeAllIndicators()
+end
+
+local Toggle = Tabs.Main:AddToggle("IndicatorToggle", { Title = "Enable Ball Size", Default = false })
+
+Toggle:OnChanged(function()
+    indicatorEnabled = Toggle.Value
+    if indicatorEnabled then
+        startIndicatorSystem()
+    else
+        stopIndicatorSystem()
+    end
+end)
+
+local Slider = Tabs.Main:AddSlider("BallSizeSlider", {
+    Title = "Ball Size",
+    Default = 6,
+    Min = 5,
+    Max = 10,
+    Rounding = 1,
+    Callback = function(Value)
+        ballSizeMultiplier = Value
+        local finalSize = ballSizeMultiplier * 2 -- แก้ไขการคำนวณให้ถูกต้อง
+        for _, ball in ipairs(spawnedBalls) do
+            if ball and ball.Parent then
+                ball.Size = Vector3.new(finalSize, finalSize, finalSize)
+            end
+        end
+    end
+})
+
+local Lighting = game:GetService("Lighting")
+local Terrain = workspace:WaitForChild("Terrain")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local VirtualUser = game:GetService("VirtualUser")
+
+local function ApplyPotato()
+    local function optimize(obj)
+        if obj:IsA("BasePart") then
+            obj.Material = Enum.Material.SmoothPlastic
+            obj.Reflectance = 0
+        elseif obj:IsA("MeshPart") then
+            obj.RenderFidelity = Enum.RenderFidelity.Performance
+            obj.Material = Enum.Material.SmoothPlastic
+            obj.CollisionFidelity = Enum.CollisionFidelity.Box
+        elseif obj:IsA("Decal") or obj:IsA("Texture") then
+        elseif obj:IsA("ParticleEmitter") then
+            if obj.Rate > 10 then
+                obj.Rate = obj.Rate * 0.1
+            end
+        elseif obj:IsA("Trail") or obj:IsA("Fire") or obj:IsA("Smoke") then
+            obj.Enabled = true
+        end
+    end
+
+    Lighting.GlobalShadows = false
+    
+    for _, v in pairs(Lighting:GetChildren()) do
+        if v:IsA("BlurEffect") or v:IsA("SunRaysEffect") or v:IsA("DepthOfFieldEffect") then
+            v.Enabled = false
+        elseif v:IsA("BloomEffect") then
+            v.Intensity = 0.1
+        end
+    end
+
+    for _, v in pairs(workspace:GetDescendants()) do
+        optimize(v)
+    end
+
+    workspace.DescendantAdded:Connect(function(v)
+        task.wait()
+        optimize(v)
+    end)
+
+    Terrain.WaterWaveSize = 0
+    Terrain.WaterWaveSpeed = 0
+    Terrain.WaterReflectance = 0
+    Terrain.WaterTransparency = 1
+end
+
+Tabs.Settings:AddButton({
+    Title = "Potato",
+    Callback = function()
+        ApplyPotato()
+    end
+})
+
+Tabs.Settings:AddToggle("Anti AFK", {
+    Title = "Anti AFK",
+    Default = false,
+    Callback = function(v)
+        local conn = getgenv().AntiAFKConn
+        if v then
+            getgenv().AntiAFKConn = player.Idled:Connect(function()
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton2(Vector2.new(0,0))
+            end)
+        else
+            if conn then conn:Disconnect() getgenv().AntiAFKConn = nil end
+        end
+    end
+})
+
+task.spawn(function()
+    while true do
+        collectgarbage("collect")
+        task.wait(60)
+    end
+end)
+
+Window:SelectTab(1)
